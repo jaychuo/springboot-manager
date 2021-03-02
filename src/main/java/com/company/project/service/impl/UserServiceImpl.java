@@ -2,31 +2,30 @@ package com.company.project.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.company.project.common.exception.BusinessException;
+import com.company.project.common.exception.code.BaseResponseCode;
+import com.company.project.common.utils.PasswordUtils;
 import com.company.project.entity.SysDept;
 import com.company.project.entity.SysRole;
 import com.company.project.entity.SysUser;
-import com.company.project.common.exception.BusinessException;
-import com.company.project.common.exception.code.BaseResponseCode;
 import com.company.project.mapper.SysDeptMapper;
 import com.company.project.mapper.SysUserMapper;
 import com.company.project.service.*;
-import com.company.project.vo.req.*;
-import com.company.project.common.utils.PasswordUtils;
+import com.company.project.vo.req.UserRoleOperationReqVO;
 import com.company.project.vo.resp.LoginRespVO;
 import com.company.project.vo.resp.UserOwnRoleRespVO;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.subject.Subject;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
-import java.util.*;
+import java.util.List;
 
 /**
  * 用户 服务类
@@ -58,27 +57,19 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     private String env;
 
     @Override
-    public String register(RegisterReqVO vo) {
-
-        SysUser sysUserOne = sysUserMapper.selectOne(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, vo.getUsername()));
+    public void register(SysUser sysUser) {
+        SysUser sysUserOne = sysUserMapper.selectOne(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, sysUser.getUsername()));
         if (sysUserOne != null) {
             throw new BusinessException("用户名已存在！");
         }
-
-        SysUser sysUser = new SysUser();
-        BeanUtils.copyProperties(vo, sysUser);
         sysUser.setSalt(PasswordUtils.getSalt());
-        String encode = PasswordUtils.encode(vo.getPassword(), sysUser.getSalt());
+        String encode = PasswordUtils.encode(sysUser.getPassword(), sysUser.getSalt());
         sysUser.setPassword(encode);
-        int i = sysUserMapper.insert(sysUser);
-        if (i != 1) {
-            throw new BusinessException(BaseResponseCode.OPERATION_ERRO);
-        }
-        return sysUser.getId();
+        sysUserMapper.insert(sysUser);
     }
 
     @Override
-    public LoginRespVO login(LoginReqVO vo) {
+    public LoginRespVO login(SysUser vo) {
         SysUser sysUser = sysUserMapper.selectOne(Wrappers.<SysUser>lambdaQuery().eq(SysUser::getUsername, vo.getUsername()));
         if (null == sysUser) {
             throw new BusinessException(BaseResponseCode.NOT_ACCOUNT);
@@ -97,29 +88,24 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (!allowMultipleLogin) {
             httpSessionService.abortUserById(sysUser.getId());
         }
-
-        String token = httpSessionService.createTokenAndUser(sysUser, getRolesByUserId(sysUser.getId()), getPermissionsByUserId(sysUser.getId()));
+        if (StringUtils.isNotBlank(sysUser.getDeptId())) {
+            SysDept sysDept = sysDeptMapper.selectById(sysUser.getDeptId());
+            if (sysDept != null) {
+                sysUser.setDeptNo(sysDept.getDeptNo());
+            }
+        }
+        String token = httpSessionService.createTokenAndUser(sysUser, roleService.getRoleNames(sysUser.getId()), permissionService.getPermissionsByUserId(sysUser.getId()));
         respVO.setAccessToken(token);
 
         return respVO;
     }
 
-    private List<String> getRolesByUserId(String userId) {
-        return roleService.getRoleNames(userId);
-    }
-
-    private Set<String> getPermissionsByUserId(String userId) {
-        return permissionService.getPermissionsByUserId(userId);
-    }
-
-
     @Override
-    public void updateUserInfo(SysUser vo, String operationId) {
+    public void updateUserInfo(SysUser vo) {
 
 
         SysUser sysUser = sysUserMapper.selectById(vo.getId());
         if (null == sysUser) {
-            log.error("传入 的 id:{}不合法", vo.getId());
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         }
 
@@ -139,37 +125,33 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             httpSessionService.abortUserById(vo.getId());
         }
 
-        BeanUtils.copyProperties(vo, sysUser);
         if (!StringUtils.isEmpty(vo.getPassword())) {
             String newPassword = PasswordUtils.encode(vo.getPassword(), sysUser.getSalt());
-            sysUser.setPassword(newPassword);
+            vo.setPassword(newPassword);
         } else {
-            sysUser.setPassword(null);
+            vo.setPassword(null);
         }
-        sysUser.setUpdateId(operationId);
-        sysUserMapper.updateById(sysUser);
+        vo.setUpdateId(httpSessionService.getCurrentUserId());
+        sysUserMapper.updateById(vo);
 
     }
 
     @Override
-    public void updateUserInfoMy(SysUser vo, String operationId) {
+    public void updateUserInfoMy(SysUser vo) {
 
 
-        SysUser sysUser = sysUserMapper.selectById(vo.getId());
-        if (null == sysUser) {
-            log.error("传入 的 id:{}不合法", vo.getId());
+        SysUser user = sysUserMapper.selectById(httpSessionService.getCurrentUserId());
+        if (null == user) {
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         }
-
-        BeanUtils.copyProperties(vo, sysUser);
         if (!StringUtils.isEmpty(vo.getPassword())) {
-            String newPassword = PasswordUtils.encode(vo.getPassword(), sysUser.getSalt());
-            sysUser.setPassword(newPassword);
+            String newPassword = PasswordUtils.encode(vo.getPassword(), user.getSalt());
+            vo.setPassword(newPassword);
         } else {
-            sysUser.setPassword(null);
+            vo.setPassword(null);
         }
-        sysUser.setUpdateId(operationId);
-        sysUserMapper.updateById(sysUser);
+        vo.setUpdateId(httpSessionService.getCurrentUserId());
+        sysUserMapper.updateById(vo);
 
     }
 
@@ -189,7 +171,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (!StringUtils.isEmpty(vo.getNickName())) {
             queryWrapper.like(SysUser::getNickName, vo.getNickName());
         }
-        if (!StringUtils.isEmpty(vo.getStatus())) {
+        if (null != vo.getStatus()) {
             queryWrapper.eq(SysUser::getStatus, vo.getStatus());
         }
         if (!StringUtils.isEmpty(vo.getDeptNo())) {
@@ -200,7 +182,7 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         }
         queryWrapper.orderByDesc(SysUser::getCreateTime);
         IPage<SysUser> iPage = sysUserMapper.selectPage(page, queryWrapper);
-        if (!iPage.getRecords().isEmpty()) {
+        if (!CollectionUtils.isEmpty(iPage.getRecords())) {
             for (SysUser sysUser : iPage.getRecords()) {
                 SysDept sysDept = sysDeptMapper.selectById(sysUser.getDeptId());
                 if (sysDept != null) {
@@ -218,17 +200,13 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
         if (sysUserOne != null) {
             throw new BusinessException("用户已存在，请勿重复添加！");
         }
-
         vo.setSalt(PasswordUtils.getSalt());
         String encode = PasswordUtils.encode(vo.getPassword(), vo.getSalt());
         vo.setPassword(encode);
         vo.setStatus(1);
         vo.setCreateWhere(1);
-        int i = sysUserMapper.insert(vo);
-        if (i != 1) {
-            throw new BusinessException(BaseResponseCode.OPERATION_ERRO);
-        }
-        if (null != vo.getRoleIds() && !vo.getRoleIds().isEmpty()) {
+        sysUserMapper.insert(vo);
+        if (!CollectionUtils.isEmpty(vo.getRoleIds())) {
             UserRoleOperationReqVO reqVO = new UserRoleOperationReqVO();
             reqVO.setUserId(vo.getId());
             reqVO.setRoleIds(vo.getRoleIds());
@@ -237,16 +215,9 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
     }
 
     @Override
-    public void logout() {
-        httpSessionService.abortUserByToken();
-        Subject subject = SecurityUtils.getSubject();
-        subject.logout();
-    }
+    public void updatePwd(SysUser vo) {
 
-    @Override
-    public void updatePwd(UpdatePasswordReqVO vo, String userId) {
-
-        SysUser sysUser = sysUserMapper.selectById(userId);
+        SysUser sysUser = sysUserMapper.selectById(vo.getId());
         if (sysUser == null) {
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         }
@@ -261,23 +232,16 @@ public class UserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impleme
             throw new BusinessException("新密码不能与旧密码相同");
         }
         sysUser.setPassword(PasswordUtils.encode(vo.getNewPwd(), sysUser.getSalt()));
-        int i = sysUserMapper.updateById(sysUser);
-        if (i != 1) {
-            throw new BusinessException(BaseResponseCode.OPERATION_ERRO);
-        }
+        sysUserMapper.updateById(sysUser);
+        //退出用户
         httpSessionService.abortAllUserByToken();
 
     }
 
     @Override
-    public List<SysUser> getUserListByDeptIds(List<Object> deptIds) {
-        return sysUserMapper.selectList(Wrappers.<SysUser>lambdaQuery().in(SysUser::getDeptId, deptIds));
-    }
-
-    @Override
     public UserOwnRoleRespVO getUserOwnRole(String userId) {
         List<String> roleIdsByUserId = userRoleService.getRoleIdsByUserId(userId);
-        List<SysRole> list = roleService.selectAllRoles();
+        List<SysRole> list = roleService.list();
         UserOwnRoleRespVO vo = new UserOwnRoleRespVO();
         vo.setAllRole(list);
         vo.setOwnRoles(roleIdsByUserId);

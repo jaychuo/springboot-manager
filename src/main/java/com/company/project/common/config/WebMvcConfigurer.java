@@ -7,7 +7,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.web.servlet.config.annotation.*;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.DefaultServletHandlerConfigurer;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 
 import javax.annotation.Resource;
 import java.nio.charset.StandardCharsets;
@@ -29,7 +32,7 @@ public class WebMvcConfigurer extends WebMvcConfigurationSupport {
     private FileUploadProperties fileUploadProperties;
 
     /**
-     *  使用阿里 FastJson 作为JSON MessageConverter
+     * 使用阿里 FastJson 作为JSON MessageConverter
      */
     @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {

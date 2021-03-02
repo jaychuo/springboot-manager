@@ -1,19 +1,18 @@
 package com.company.project.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.project.common.aop.annotation.LogAnnotation;
+import com.company.project.common.utils.DataResult;
+import com.company.project.entity.SysJobLogEntity;
+import com.company.project.service.SysJobLogService;
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import io.swagger.annotations.ApiOperation;
-import com.company.project.common.utils.DataResult;
-
-import com.company.project.entity.SysJobLogEntity;
-import com.company.project.service.SysJobLogService;
 
 import javax.annotation.Resource;
 
@@ -35,7 +34,7 @@ public class SysJobLogController {
     @ApiOperation(value = "查询分页数据")
     @PostMapping("/listByPage")
     @RequiresPermissions("sysJob:list")
-    public DataResult findListByPage(@RequestBody SysJobLogEntity sysJobLog){
+    public DataResult findListByPage(@RequestBody SysJobLogEntity sysJobLog) {
         Page page = new Page(sysJobLog.getPage(), sysJobLog.getLimit());
         LambdaQueryWrapper<SysJobLogEntity> queryWrapper = Wrappers.lambdaQuery();
         //查询条件示例

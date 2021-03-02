@@ -3,9 +3,9 @@ package com.company.project.controller;
 import com.company.project.common.aop.annotation.LogAnnotation;
 import com.company.project.common.exception.BusinessException;
 import com.company.project.common.exception.code.BaseResponseCode;
+import com.company.project.common.utils.DataResult;
 import com.company.project.entity.SysPermission;
 import com.company.project.service.PermissionService;
-import com.company.project.common.utils.DataResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.Logical;
@@ -67,7 +67,7 @@ public class PermissionController {
         if (sysPermission.getType().equals(vo.getType()) || !sysPermission.getPid().equals(vo.getPid())) {
             verifyFormPid(vo);
         }
-        permissionService.updateById(vo);
+        permissionService.updatePermission(vo);
         return DataResult.success();
     }
 

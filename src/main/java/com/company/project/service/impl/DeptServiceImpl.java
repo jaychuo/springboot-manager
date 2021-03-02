@@ -1,22 +1,21 @@
 package com.company.project.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.company.project.common.utils.Constant;
-import com.company.project.entity.SysDept;
-import com.company.project.entity.SysUser;
 import com.company.project.common.exception.BusinessException;
 import com.company.project.common.exception.code.BaseResponseCode;
+import com.company.project.entity.SysDept;
+import com.company.project.entity.SysUser;
 import com.company.project.mapper.SysDeptMapper;
+import com.company.project.mapper.SysUserMapper;
 import com.company.project.service.DeptService;
-import com.company.project.service.UserService;
 import com.company.project.vo.resp.DeptRespNodeVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
@@ -38,17 +37,16 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
     @Resource
     private SysDeptMapper sysDeptMapper;
     @Resource
-    private UserService userService;
+    private SysUserMapper sysUserMapper;
 
     @Override
-    public SysDept addDept(SysDept vo) {
+    public void addDept(SysDept vo) {
         String relationCode;
         String deptCode = this.getNewDeptCode();
         SysDept parent = sysDeptMapper.selectById(vo.getPid());
         if ("0".equals(vo.getPid())) {
             relationCode = deptCode;
         } else if (null == parent) {
-            log.error("传入的 pid:{}不合法", vo.getPid());
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         } else {
             relationCode = parent.getRelationCode() + deptCode;
@@ -57,7 +55,6 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
         vo.setRelationCode(relationCode);
         vo.setStatus(1);
         sysDeptMapper.insert(vo);
-        return vo;
     }
 
     @Override
@@ -66,17 +63,13 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
 
         SysDept sysDept = sysDeptMapper.selectById(vo.getId());
         if (null == sysDept) {
-            log.error("传入 的 id:{}不合法", vo.getId());
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         }
-        SysDept update = new SysDept();
-        BeanUtils.copyProperties(vo, update);
-        sysDeptMapper.updateById(update);
+        sysDeptMapper.updateById(vo);
         //说明层级发生了变化
         if (!StringUtils.isEmpty(vo.getPid()) && !vo.getPid().equals(sysDept.getPid())) {
             SysDept parent = sysDeptMapper.selectById(vo.getPid());
             if (!"0".equals(vo.getPid()) && null == parent) {
-                log.error("传入 的 pid:{}不合法", vo.getId());
                 throw new BusinessException(BaseResponseCode.DATA_ERROR);
             }
             SysDept oldParent = sysDeptMapper.selectById(sysDept.getPid());
@@ -110,17 +103,16 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
         if (null == sysDept) {
             throw new BusinessException(BaseResponseCode.DATA_ERROR);
         }
-        LambdaQueryWrapper<SysDept> queryWrapper = Wrappers.<SysDept>lambdaQuery().likeRight(SysDept::getRelationCode, sysDept.getRelationCode());
-        List<Object> deptIds = sysDeptMapper.selectObjs(queryWrapper);
-        List<SysUser> list = userService.getUserListByDeptIds(deptIds);
-        if (!list.isEmpty()) {
+        List<Object> deptIds = sysDeptMapper.selectObjs(Wrappers.<SysDept>lambdaQuery().select(SysDept::getId).likeRight(SysDept::getRelationCode, sysDept.getRelationCode()));
+        List<SysUser> list = sysUserMapper.selectList(Wrappers.<SysUser>lambdaQuery().in(SysUser::getDeptId, deptIds));
+        if (!CollectionUtils.isEmpty(list)) {
             throw new BusinessException(BaseResponseCode.NOT_PERMISSION_DELETED_DEPT);
         }
         sysDeptMapper.deleteById(id);
     }
 
     @Override
-    public List<DeptRespNodeVO> deptTreeList(String deptId) {
+    public List<DeptRespNodeVO> deptTreeList(String deptId, Boolean disabled) {
         List<SysDept> list;
         if (StringUtils.isEmpty(deptId)) {
             list = sysDeptMapper.selectList(Wrappers.emptyWrapper());
@@ -138,6 +130,7 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
         respNodeVO.setTitle("默认顶级部门");
         respNodeVO.setId("0");
         respNodeVO.setSpread(true);
+        respNodeVO.setDisabled(disabled);
         respNodeVO.setChildren(getTree(list));
         List<DeptRespNodeVO> result = new ArrayList<>();
         result.add(respNodeVO);
@@ -173,18 +166,6 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
         return list;
     }
 
-    @Override
-    public List<SysDept> selectAll() {
-        List<SysDept> deptList = sysDeptMapper.selectList(new QueryWrapper<>());
-        deptList.parallelStream().forEach(entity -> {
-            SysDept parentDept = sysDeptMapper.selectById(entity.getPid());
-            if (parentDept != null) {
-                entity.setPidName(parentDept.getName());
-            }
-        });
-        return deptList;
-    }
-
     //获取新的部门编码
     public String getNewDeptCode() {
         LambdaQueryWrapper<SysDept> lambdaQueryWrapper = Wrappers.lambdaQuery();
@@ -197,7 +178,7 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
         deptCodes.forEach(o -> {
             String str = String.valueOf(o);
             if (str.length() >= 7) {
-                Integer one = Integer.parseInt(str.substring(str.length()-5));
+                Integer one = Integer.parseInt(str.substring(str.length() - 5));
                 if (one > maxDeptCode.get()) {
                     maxDeptCode.set(one);
                 }
@@ -212,10 +193,10 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
      * 右补位，左对齐
      *
      * @param len    目标字符串长度
-     * @param alexi 补位字符
+     * @param alexi  补位字符
+     * @param oriStr 原字符串
      * @return 目标字符串
      * 以alexin 做为补位
-     * @param oriStr  原字符串
      */
     public static String padRight(int oriStr, int len, String alexi) {
         StringBuilder str = new StringBuilder();
@@ -226,6 +207,6 @@ public class DeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impleme
             }
         }
         str.append(oriStr);
-        return Constant.DEPT_TYPE + str.toString();
+        return "D" + str.toString();
     }
 }

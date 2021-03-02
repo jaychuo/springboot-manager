@@ -2,22 +2,24 @@ package com.company.project.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.company.project.common.exception.BusinessException;
+import com.company.project.common.aop.annotation.LogAnnotation;
+import com.company.project.common.exception.code.BaseResponseCode;
+import com.company.project.common.utils.DataResult;
+import com.company.project.entity.SysUser;
 import com.company.project.entity.SysUserRole;
 import com.company.project.service.HttpSessionService;
 import com.company.project.service.UserRoleService;
-import com.company.project.vo.req.*;
-import com.company.project.common.aop.annotation.LogAnnotation;
-import com.company.project.entity.SysUser;
-import com.company.project.common.exception.code.BaseResponseCode;
 import com.company.project.service.UserService;
-import com.company.project.common.utils.DataResult;
-import com.google.code.kaptcha.Constants;
+import com.company.project.vo.req.UserRoleOperationReqVO;
+import com.wf.captcha.utils.CaptchaUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.apache.shiro.subject.Subject;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,18 +49,21 @@ public class UserController {
 
     @PostMapping(value = "/user/login")
     @ApiOperation(value = "用户登录接口")
-    public DataResult login(@RequestBody @Valid LoginReqVO vo, HttpServletRequest request) {
-        //校验图像验证码
-        validImageCode(vo.getCaptcha(), request);
+    public DataResult login(@RequestBody @Valid SysUser vo, HttpServletRequest request) {
+        //判断验证码
+        if (!CaptchaUtil.ver(vo.getCaptcha(), request)) {
+            // 清除session中的验证码
+            CaptchaUtil.clear(request);
+            return DataResult.fail("验证码错误！");
+        }
         return DataResult.success(userService.login(vo));
     }
 
     @PostMapping("/user/register")
     @ApiOperation(value = "用户注册接口")
-    public DataResult register(@RequestBody @Valid RegisterReqVO vo) {
-        DataResult result = DataResult.success();
-        result.setData(userService.register(vo));
-        return result;
+    public DataResult register(@RequestBody @Valid SysUser vo) {
+        userService.register(vo);
+        return DataResult.success();
     }
 
     @GetMapping("/user/unLogin")
@@ -75,8 +80,8 @@ public class UserController {
         if (StringUtils.isEmpty(vo.getId())) {
             return DataResult.fail("id不能为空");
         }
-        String userId = httpSessionService.getCurrentUserId();
-        userService.updateUserInfo(vo, userId);
+
+        userService.updateUserInfo(vo);
         return DataResult.success();
     }
 
@@ -84,9 +89,7 @@ public class UserController {
     @ApiOperation(value = "更新用户信息接口")
     @LogAnnotation(title = "用户管理", action = "更新用户信息")
     public DataResult updateUserInfoById(@RequestBody SysUser vo) {
-        String userId = httpSessionService.getCurrentUserId();
-        vo.setId(userId);
-        userService.updateUserInfoMy(vo, userId);
+        userService.updateUserInfoMy(vo);
         return DataResult.success();
     }
 
@@ -127,16 +130,22 @@ public class UserController {
     @ApiOperation(value = "退出接口")
     @LogAnnotation(title = "用户管理", action = "退出")
     public DataResult logout() {
-        userService.logout();
+        httpSessionService.abortUserByToken();
+        Subject subject = SecurityUtils.getSubject();
+        subject.logout();
         return DataResult.success();
     }
 
     @PutMapping("/user/pwd")
     @ApiOperation(value = "修改密码接口")
     @LogAnnotation(title = "用户管理", action = "更新密码")
-    public DataResult updatePwd(@RequestBody UpdatePasswordReqVO vo) {
+    public DataResult updatePwd(@RequestBody SysUser vo) {
+        if (StringUtils.isEmpty(vo.getOldPwd()) || StringUtils.isEmpty(vo.getNewPwd())) {
+            return DataResult.fail("旧密码与新密码不能为空");
+        }
         String userId = httpSessionService.getCurrentUserId();
-        userService.updatePwd(vo, userId);
+        vo.setId(userId);
+        userService.updatePwd(vo);
         return DataResult.success();
     }
 
@@ -172,27 +181,14 @@ public class UserController {
         LambdaQueryWrapper<SysUserRole> queryWrapper = Wrappers.lambdaQuery();
         queryWrapper.eq(SysUserRole::getUserId, userId);
         userRoleService.remove(queryWrapper);
-        if (null != roleIds && !roleIds.isEmpty()) {
+        if (!CollectionUtils.isEmpty(roleIds)) {
             UserRoleOperationReqVO reqVO = new UserRoleOperationReqVO();
             reqVO.setUserId(userId);
             reqVO.setRoleIds(roleIds);
             userRoleService.addUserRoleInfo(reqVO);
         }
+        //刷新权限
         httpSessionService.refreshUerId(userId);
-        return  DataResult.success();
+        return DataResult.success();
     }
-
-    /**
-     * 校验图像验证码
-     * @param imageCode 验证码
-     * @param request request
-     */
-    private void validImageCode(String imageCode, HttpServletRequest request) {
-        String captchaId = (String)
-                request.getSession().getAttribute(Constants.KAPTCHA_SESSION_KEY);
-        if (!captchaId.equals(imageCode)) {
-            throw new BusinessException("验证码输入有误");
-        }
-    }
-
 }

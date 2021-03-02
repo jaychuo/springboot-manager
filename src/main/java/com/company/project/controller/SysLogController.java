@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.project.common.aop.annotation.LogAnnotation;
+import com.company.project.common.utils.DataResult;
 import com.company.project.entity.SysLog;
 import com.company.project.service.LogService;
-import com.company.project.common.utils.DataResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -37,16 +37,16 @@ public class SysLogController {
     public DataResult pageInfo(@RequestBody SysLog vo) {
         Page page = new Page(vo.getPage(), vo.getLimit());
         LambdaQueryWrapper<SysLog> queryWrapper = Wrappers.lambdaQuery();
-        if (!StringUtils.isEmpty(vo.getUsername()) ) {
+        if (!StringUtils.isEmpty(vo.getUsername())) {
             queryWrapper.like(SysLog::getUsername, vo.getUsername());
         }
-        if (!StringUtils.isEmpty(vo.getOperation()) ) {
+        if (!StringUtils.isEmpty(vo.getOperation())) {
             queryWrapper.like(SysLog::getOperation, vo.getOperation());
         }
-        if (!StringUtils.isEmpty(vo.getStartTime()) ) {
+        if (!StringUtils.isEmpty(vo.getStartTime())) {
             queryWrapper.gt(SysLog::getCreateTime, vo.getStartTime());
         }
-        if (!StringUtils.isEmpty(vo.getEndTime()) ) {
+        if (!StringUtils.isEmpty(vo.getEndTime())) {
             queryWrapper.lt(SysLog::getCreateTime, vo.getEndTime());
         }
         queryWrapper.orderByDesc(SysLog::getCreateTime);

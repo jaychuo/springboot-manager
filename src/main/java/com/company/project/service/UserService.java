@@ -3,11 +3,8 @@ package com.company.project.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.company.project.entity.SysUser;
-import com.company.project.vo.req.*;
 import com.company.project.vo.resp.LoginRespVO;
 import com.company.project.vo.resp.UserOwnRoleRespVO;
-
-import java.util.List;
 
 /**
  * 用户 服务类
@@ -18,23 +15,62 @@ import java.util.List;
  */
 public interface UserService extends IService<SysUser> {
 
-    String register(RegisterReqVO vo);
+    /**
+     * 注册
+     *
+     * @param vo vo
+     */
+    void register(SysUser vo);
 
-    LoginRespVO login(LoginReqVO vo);
+    /**
+     * 登陆
+     *
+     * @param vo vo
+     * @return LoginRespVO
+     */
+    LoginRespVO login(SysUser vo);
 
-    void updateUserInfo(SysUser vo, String operationId);
+    /**
+     * 更新用户信息
+     *
+     * @param vo vo
+     */
+    void updateUserInfo(SysUser vo);
 
+    /**
+     * 分页
+     *
+     * @param vo vo
+     * @return IPage
+     */
     IPage<SysUser> pageInfo(SysUser vo);
 
+    /**
+     * 添加用户
+     *
+     * @param vo vo
+     */
     void addUser(SysUser vo);
 
-    void logout();
+    /**
+     * 修改密码
+     *
+     * @param vo vo
+     */
+    void updatePwd(SysUser vo);
 
-    void updatePwd(UpdatePasswordReqVO vo,String userId);
-
-    List<SysUser> getUserListByDeptIds(List<Object> deptIds);
-
+    /**
+     * 根据userid获取绑定角色
+     *
+     * @param userId userId
+     * @return UserOwnRoleRespVO
+     */
     UserOwnRoleRespVO getUserOwnRole(String userId);
 
-    void updateUserInfoMy(SysUser vo, String userId);
+    /**
+     * 修改自己信息
+     *
+     * @param vo vo
+     */
+    void updateUserInfoMy(SysUser vo);
 }

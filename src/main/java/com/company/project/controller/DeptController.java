@@ -1,9 +1,9 @@
 package com.company.project.controller;
 
 import com.company.project.common.aop.annotation.LogAnnotation;
+import com.company.project.common.utils.DataResult;
 import com.company.project.entity.SysDept;
 import com.company.project.service.DeptService;
-import com.company.project.common.utils.DataResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.Logical;
@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * 部门管理
@@ -33,7 +34,8 @@ public class DeptController {
     @LogAnnotation(title = "机构管理", action = "新增组织")
     @RequiresPermissions("sys:dept:add")
     public DataResult addDept(@RequestBody @Valid SysDept vo) {
-        return DataResult.success(deptService.addDept(vo));
+        deptService.addDept(vo);
+        return DataResult.success();
     }
 
     @DeleteMapping("/dept/{id}")
@@ -68,9 +70,9 @@ public class DeptController {
     @GetMapping("/dept/tree")
     @ApiOperation(value = "树型组织列表接口")
     @LogAnnotation(title = "机构管理", action = "树型组织列表")
-    @RequiresPermissions(value = {"sys:user:list","sys:user:update", "sys:user:add", "sys:dept:add", "sys:dept:update"}, logical = Logical.OR)
+    @RequiresPermissions(value = {"sys:user:list", "sys:user:update", "sys:user:add", "sys:dept:add", "sys:dept:update"}, logical = Logical.OR)
     public DataResult getTree(@RequestParam(required = false) String deptId) {
-        return DataResult.success(deptService.deptTreeList(deptId));
+        return DataResult.success(deptService.deptTreeList(deptId, false));
     }
 
     @GetMapping("/depts")
@@ -78,6 +80,14 @@ public class DeptController {
     @LogAnnotation(title = "机构管理", action = "获取所有组织机构")
     @RequiresPermissions("sys:dept:list")
     public DataResult getDeptAll() {
-        return DataResult.success(deptService.selectAll());    }
+        List<SysDept> deptList = deptService.list();
+        deptList.parallelStream().forEach(entity -> {
+            SysDept parentDept = deptService.getById(entity.getPid());
+            if (parentDept != null) {
+                entity.setPidName(parentDept.getName());
+            }
+        });
+        return DataResult.success(deptList);
+    }
 
 }

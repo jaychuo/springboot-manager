@@ -36,9 +36,7 @@ public class GenUtils {
         templates.add("template/Service.java.vm");
         templates.add("template/ServiceImpl.java.vm");
         templates.add("template/Controller.java.vm");
-        templates.add("template/menu.mysql.sql.vm");
-        templates.add("template/menu.oracle.sql.vm");
-        templates.add("template/menu.sqlServer.sql.vm");
+        templates.add("template/menu.sql.vm");
         templates.add("template/list.html.vm");
 
         return templates;
@@ -118,7 +116,12 @@ public class GenUtils {
         map.put("author", config.getString("author"));
         map.put("email", config.getString("email"));
         map.put("datetime", DateUtils.format(new Date(), DateUtils.DATE_TIME_PATTERN));
-        map.put("identity",UUID.randomUUID().toString().replace("-",""));
+        SnowflakeIdWorker idWorker = new SnowflakeIdWorker(0, 0);
+        map.put("identity", idWorker.nextId());
+        map.put("addId", idWorker.nextId());
+        map.put("updateId", idWorker.nextId());
+        map.put("deleteId", idWorker.nextId());
+        map.put("selectId", idWorker.nextId());
         VelocityContext context = new VelocityContext(map);
 
         //获取模板列表
@@ -215,16 +218,8 @@ public class GenUtils {
             return "main" + File.separator + "resources" + File.separator + "mapper" + File.separator + className + "Mapper.xml";
         }
 
-        if (template.contains("menu.mysql.sql.vm")) {
-            return className.toLowerCase() + "_menu.mysql.sql";
-        }
-
-        if (template.contains("menu.oracle.sql.vm")) {
-            return className.toLowerCase() + "_menu.oracle.sql";
-        }
-
-        if (template.contains("menu.sqlServer.sql.vm")) {
-            return className.toLowerCase() + "_menu.sqlServer.sql";
+        if (template.contains("menu.sql.vm")) {
+            return className.toLowerCase() + "_menu.sql";
         }
 
         if (template.contains("list.html.vm")) {

@@ -4,17 +4,22 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.company.project.common.aop.annotation.LogAnnotation;
-import com.company.project.entity.SysRole;
-import com.company.project.service.RoleService;
 import com.company.project.common.utils.DataResult;
+import com.company.project.entity.SysRole;
+import com.company.project.entity.SysRoleDeptEntity;
+import com.company.project.service.RoleService;
+import com.company.project.service.SysRoleDeptService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 角色管理
@@ -29,13 +34,16 @@ import javax.validation.Valid;
 public class RoleController {
     @Resource
     private RoleService roleService;
+    @Resource
+    private SysRoleDeptService sysRoleDeptService;
 
     @PostMapping("/role")
     @ApiOperation(value = "新增角色接口")
     @LogAnnotation(title = "角色管理", action = "新增角色")
     @RequiresPermissions("sys:role:add")
     public DataResult addRole(@RequestBody @Valid SysRole vo) {
-        return DataResult.success(roleService.addRole(vo));
+        roleService.addRole(vo);
+        return DataResult.success();
     }
 
     @DeleteMapping("/role/{id}")
@@ -56,6 +64,38 @@ public class RoleController {
             return DataResult.fail("id不能为空");
         }
         roleService.updateRole(vo);
+        return DataResult.success();
+    }
+
+    @PostMapping("/role/bindDept")
+    @ApiOperation(value = "绑定角色部门接口")
+    @LogAnnotation(title = "角色管理", action = "绑定角色部门信息")
+    @RequiresPermissions("sys:role:bindDept")
+    public DataResult bindDept(@RequestBody SysRole vo) {
+        if (StringUtils.isEmpty(vo.getId())) {
+            return DataResult.fail("id不能为空");
+        }
+        if (roleService.getById(vo.getId()) == null) {
+            return DataResult.fail("获取角色失败");
+        }
+
+        //先删除所有绑定
+        sysRoleDeptService.remove(Wrappers.<SysRoleDeptEntity>lambdaQuery().eq(SysRoleDeptEntity::getRoleId, vo.getId()));
+        //如果不是自定义
+        if (vo.getDataScope() != 2) {
+            vo.setDepts(null);
+        }
+        if (!CollectionUtils.isEmpty(vo.getDepts())) {
+            List<SysRoleDeptEntity> list = new ArrayList<>();
+            for (String deptId : vo.getDepts()) {
+                SysRoleDeptEntity sysRoleDeptEntity = new SysRoleDeptEntity();
+                sysRoleDeptEntity.setDeptId(deptId);
+                sysRoleDeptEntity.setRoleId(vo.getId());
+                list.add(sysRoleDeptEntity);
+            }
+            sysRoleDeptService.saveBatch(list);
+        }
+        roleService.updateById(new SysRole().setId(vo.getId()).setDataScope(vo.getDataScope()));
         return DataResult.success();
     }
 

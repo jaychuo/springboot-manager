@@ -1,6 +1,8 @@
 package com.company.project.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
@@ -46,7 +48,6 @@ public class SysDept implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
 
-    @TableLogic
     @TableField(fill = FieldFill.INSERT)
     private Integer deleted;
 

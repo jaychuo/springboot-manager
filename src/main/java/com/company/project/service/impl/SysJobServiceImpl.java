@@ -1,16 +1,15 @@
 package com.company.project.service.impl;
 
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.company.project.common.exception.BusinessException;
 import com.company.project.common.job.utils.ScheduleUtils;
 import com.company.project.common.utils.Constant;
+import com.company.project.entity.SysJobEntity;
+import com.company.project.mapper.SysJobMapper;
+import com.company.project.service.SysJobService;
 import org.quartz.CronTrigger;
 import org.quartz.Scheduler;
 import org.springframework.stereotype.Service;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-
-import com.company.project.mapper.SysJobMapper;
-import com.company.project.entity.SysJobEntity;
-import com.company.project.service.SysJobService;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.PostConstruct;
@@ -30,18 +29,19 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobEntity> i
     private Scheduler scheduler;
     @Resource
     private SysJobMapper sysJobMapper;
+
     /**
      * 项目启动时，初始化定时器
      */
     @PostConstruct
-    public void init(){
+    public void init() {
         List<SysJobEntity> scheduleJobList = this.list();
-        for(SysJobEntity scheduleJob : scheduleJobList){
+        for (SysJobEntity scheduleJob : scheduleJobList) {
             CronTrigger cronTrigger = ScheduleUtils.getCronTrigger(scheduler, scheduleJob.getId());
             //如果不存在，则创建
-            if(cronTrigger == null) {
+            if (cronTrigger == null) {
                 ScheduleUtils.createScheduleJob(scheduler, scheduleJob);
-            }else {
+            } else {
                 ScheduleUtils.updateScheduleJob(scheduler, scheduleJob);
             }
         }
@@ -49,7 +49,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobEntity> i
 
     @Override
     public void saveJob(SysJobEntity sysJob) {
-        sysJob.setStatus(Constant.ScheduleStatus.NORMAL.getValue());
+        sysJob.setStatus(Constant.SCHEDULER_STATUS_NORMAL);
         this.save(sysJob);
 
         ScheduleUtils.createScheduleJob(scheduler, sysJob);
@@ -69,7 +69,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobEntity> i
 
     @Override
     public void delete(List<String> ids) {
-        for(String jobId : ids){
+        for (String jobId : ids) {
             ScheduleUtils.deleteScheduleJob(scheduler, jobId);
         }
         sysJobMapper.deleteBatchIds(ids);
@@ -78,7 +78,7 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobEntity> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void run(List<String> ids) {
-        for(String jobId : ids){
+        for (String jobId : ids) {
             ScheduleUtils.run(scheduler, this.getById(jobId));
         }
     }
@@ -86,25 +86,25 @@ public class SysJobServiceImpl extends ServiceImpl<SysJobMapper, SysJobEntity> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void pause(List<String> ids) {
-        for(String jobId : ids){
+        for (String jobId : ids) {
             ScheduleUtils.pauseJob(scheduler, jobId);
         }
 
-        updateBatch(ids, Constant.ScheduleStatus.PAUSE.getValue());
+        updateBatch(ids, Constant.SCHEDULER_STATUS_PAUSE);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void resume(List<String> ids) {
-        for(String jobId : ids){
+        for (String jobId : ids) {
             ScheduleUtils.resumeJob(scheduler, jobId);
         }
 
-        updateBatch(ids, Constant.ScheduleStatus.NORMAL.getValue());
+        updateBatch(ids, Constant.SCHEDULER_STATUS_NORMAL);
     }
 
     @Override
-    public void updateBatch(List<String> ids, int status){
+    public void updateBatch(List<String> ids, int status) {
         ids.parallelStream().forEach(id -> {
             SysJobEntity sysJobEntity = new SysJobEntity();
             sysJobEntity.setId(id);

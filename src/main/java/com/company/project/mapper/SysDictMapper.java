@@ -1,8 +1,7 @@
 package com.company.project.mapper;
 
-import com.company.project.entity.SysDictEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Mapper;
+import com.company.project.entity.SysDictEntity;
 
 /**
  * 字典 Mapper
@@ -11,7 +10,6 @@ import org.apache.ibatis.annotations.Mapper;
  * @version V1.0
  * @date 2020年3月18日
  */
-@Mapper
 public interface SysDictMapper extends BaseMapper<SysDictEntity> {
-	
+
 }

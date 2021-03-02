@@ -1,12 +1,11 @@
 package com.company.project.entity;
 
-import java.util.Date;
-import java.io.Serializable;
-
-import com.company.project.vo.req.PageReqVO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+
+import java.io.Serializable;
+import java.util.Date;
 
 /**
  * 代码生成
@@ -18,7 +17,7 @@ import lombok.experimental.Accessors;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-public class SysGenerator extends PageReqVO implements Serializable {
+public class SysGenerator extends BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 

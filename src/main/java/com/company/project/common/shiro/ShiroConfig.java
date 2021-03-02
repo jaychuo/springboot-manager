@@ -2,13 +2,13 @@ package com.company.project.common.shiro;
 
 import at.pollux.thymeleaf.shiro.dialect.ShiroDialect;
 import com.company.project.common.config.FileUploadProperties;
+import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.apache.shiro.mgt.SecurityManager;
 
 import javax.annotation.Resource;
 import javax.servlet.Filter;
@@ -30,12 +30,12 @@ public class ShiroConfig {
     private FileUploadProperties fileUploadProperties;
 
     @Bean(name = "shiroDialect")
-    public ShiroDialect shiroDialect(){
+    public ShiroDialect shiroDialect() {
         return new ShiroDialect();
     }
 
     @Bean
-    public CustomHashedCredentialsMatcher customHashedCredentialsMatcher(){
+    public CustomHashedCredentialsMatcher customHashedCredentialsMatcher() {
         return new CustomHashedCredentialsMatcher();
     }
 
@@ -57,7 +57,6 @@ public class ShiroConfig {
         securityManager.setRealm(customRealm());
         return securityManager;
     }
-
 
 
     @Bean
@@ -92,12 +91,11 @@ public class ShiroConfig {
         filterChainDefinitionMap.put("/csrf", "anon");
         //文件上传可直接访问
         filterChainDefinitionMap.put(fileUploadProperties.getAccessUrl(), "anon");
-        filterChainDefinitionMap.put("/sCron/**", "anon");
         filterChainDefinitionMap.put("/images/**", "anon");
         filterChainDefinitionMap.put("/js/**", "anon");
         filterChainDefinitionMap.put("/layui/**", "anon");
         filterChainDefinitionMap.put("/css/**", "anon");
-        filterChainDefinitionMap.put("/treetable-lay/**", "anon");
+        filterChainDefinitionMap.put("/layui-ext/**", "anon");
         filterChainDefinitionMap.put("/**", "token,authc");
         shiroFilterFactoryBean.setLoginUrl("/index/login");
         shiroFilterFactoryBean.setFilterChainDefinitionMap(filterChainDefinitionMap);

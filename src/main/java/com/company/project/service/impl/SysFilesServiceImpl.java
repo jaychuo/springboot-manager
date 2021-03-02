@@ -1,18 +1,16 @@
 package com.company.project.service.impl;
 
-import cn.hutool.core.io.FileUtil;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.company.project.common.config.FileUploadProperties;
 import com.company.project.common.exception.BusinessException;
 import com.company.project.common.utils.DataResult;
 import com.company.project.common.utils.DateUtils;
+import com.company.project.entity.SysFilesEntity;
+import com.company.project.mapper.SysFilesMapper;
+import com.company.project.service.SysFilesService;
 import org.apache.commons.io.FileUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-
-import com.company.project.mapper.SysFilesMapper;
-import com.company.project.entity.SysFilesEntity;
-import com.company.project.service.SysFilesService;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -74,8 +72,9 @@ public class SysFilesServiceImpl extends ServiceImpl<SysFilesMapper, SysFilesEnt
         List<SysFilesEntity> list = this.listByIds(ids);
         list.forEach(entity -> {
             //如果之前的文件存在，删除
-            if (FileUtil.exist(entity.getFilePath())) {
-                FileUtil.del(entity.getFilePath());
+            File file = new File(entity.getFilePath());
+            if (file.exists()) {
+                file.delete();
             }
         });
         this.removeByIds(ids);
